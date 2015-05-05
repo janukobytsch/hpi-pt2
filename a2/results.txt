@@ -1,0 +1,7 @@
+extension,files
+bar,["test/folder1/folder1_1/baz.bar"]
+csv,["test/my/dir/example.csv","test/my_dir/example.csv"]
+foo,["test/folder1/folder1_1/sdfsf.foo","test/folder1/folder1_1/papa.foo"]
+txt,["test/folder1/folder1_1/folder1_1_1/lolz.txt","test/folder1/folder1_1/mama.txt","test/folder1/test_2.txt","test/folder1_test/2.txt","test/test.txt"]
+txt~,["test/folder1/folder1_1/folder1_1_1/lolz.txt~"]
+zzz,["test/folder1/folder1_1/folder1_1_1/bla.zzz"]
