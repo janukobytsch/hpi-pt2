@@ -5,7 +5,8 @@
 #include <regex>
 
 #include <vector>
-
+// works with no errors when compiled with flag -std=c++14
+ 
 std::ofstream logFile;		// global variable for fileio.log, the log-file is only created if there is at least one mistake
 
 bool isValueCorrect(const std::string &teststring, const int &column) {
