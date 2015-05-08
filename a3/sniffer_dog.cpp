@@ -3,9 +3,28 @@
 #include <vector>
 #include <algorithm>
 
-// todo 3.3: Calculate minimum time needed for both dogs to return 
 int minTimeDogTraining(int searchValueX, int searchValueY, const std::vector<int> &boxes)
 {
+	bool foundX = false;
+	bool foundY = false;
+
+	for (int i = 0; i < boxes.size() / 2; ++i) {
+		int left = boxes.at(i);
+		int right = boxes.at(boxes.size() - i - 1);
+
+		if (left == searchValueX || right == searchValueX) {
+			foundX = true;
+		}
+
+		if (left == searchValueY || right == searchValueY) {
+			foundY = true;
+		}
+
+		if (foundX && foundY) {
+			return i + 1;
+		}
+	}
+
 	return -1;
 }
 
