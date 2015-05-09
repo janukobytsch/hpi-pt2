@@ -34,8 +34,8 @@ tm stringToTime(string date) throw(logic_error)
 
 void tokenize(const string str, vector<string> &tokens, const char delimiter)
 {
-    unsigned long start = str.find_first_not_of(delimiter);
-    unsigned long end = start;
+    size_t start = str.find_first_not_of(delimiter);
+    size_t end = start;
 
     while (start != string::npos) {
         end = str.find(delimiter, start);
