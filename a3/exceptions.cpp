@@ -1,62 +1,156 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <sstream>
 #include <cfloat>
 #include <iomanip>
 #include <vector>
+#include <stdexcept>
+#include <assert.h>
 
-// transforms a string to a date. Throws a logic_error if year is *not* between 2005 and 2015
-std::tm stringToTime(std::string date)
-{
-    std::tm t;
-    std::istringstream ss(date);
-    ss >> std::get_time(&t, "%d.%m.%Y");
-    
-    if(t.tm_year < 105 || t.tm_year > 115)
-        throw std::logic_error("Year should be between 2005 and 2015");
-    
-    return t;
-}
+using namespace std;
+
+static const string LOG_FILE = "log.txt";
+static const char FIELD_DELIMITER = ';';
 
 struct FormatException
 {
     int m_actLine;
-    std::string m_actFields;
+    string m_actFields;
+    FormatException(int line): m_actLine(line), m_actFields("") {}
 };
 
-void parseLine(std::string line, int lineNum)
+// transforms a string to a date. Throws a logic_error if year is *not* between 2005 and 2015
+tm stringToTime(string date) throw(logic_error)
 {
-    const std::string fieldNames[3] = { "Date", "Temperature", "Rainfall" };
+    tm t;
+    strptime(date.c_str(), "%d.%m.%Y", &t);
     
-    // todo 3.2b: parse a given line, check dates by calling stringToTime, check temperature/rainfall by calling std::stof. Catch all exceptions thrown by these methods. If there have been any exceptions, aggregate all necessary information into an instance of FormatException and throw that instance.
-    
+    if (t.tm_year < 105 || t.tm_year > 115) {
+        throw logic_error("Year should be between 2005 and 2015");
+    }
+
+    return t;
 }
 
-// todo 3.2c..
+void tokenize(const string str, vector<string> &tokens, const char delimiter)
+{
+    unsigned long start = str.find_first_not_of(delimiter);
+    unsigned long end = start;
+
+    while (start != string::npos) {
+        end = str.find(delimiter, start);
+        tokens.push_back(str.substr(start, end - start));
+        start = str.find_first_not_of(delimiter, end);
+    }
+}
+
+void parseLine(string line, int lineNum) throw(FormatException)
+{
+    if (lineNum <= 0) {
+        return;
+    }
+
+    const string fieldNames[3] = {"Date", "Temperature", "Rainfall"};
+    vector<string> fieldValues;
+    FormatException formatException(lineNum);
+
+    tokenize(line, fieldValues, FIELD_DELIMITER);
+    assert(fieldValues.size() == 3);
+
+    try {
+        stringToTime(fieldValues[0]);
+    } catch (logic_error e) {
+        formatException.m_actFields += fieldNames[0] + " ";
+    }
+
+    try {
+        stof(fieldValues[1]);
+    } catch (...) {
+        formatException.m_actFields += fieldNames[1] + " ";
+    }
+
+    try {
+        stof(fieldValues[2]);
+    } catch (...) {
+        formatException.m_actFields += fieldNames[2] + " ";
+    }
+
+    if (!formatException.m_actFields.empty()) {
+        throw formatException;
+    }
+
+    // Higher-order functions approach
+    // Any way to circumvent ambiguous overload of stof?
+    /*int fieldNum = 0;
+    array<function<void(string)>,3> fieldFormatters = {stringToTime, std::stof, std::stof};
+    FormatException formatException;
+    try {
+        stringstream ss(line);
+        while (ss.good()) {
+            string fieldValue;
+            getline(ss, fieldValue, DATA_DELIMITER);
+            try {
+                fieldFormatters[fieldNum](fieldValue);
+            } catch (...) {
+                formatException.m_actLine = fieldNum;
+                formatException.m_actFields += fieldNames[fieldNum];
+            }
+            ++fieldNum;
+        }
+    } catch (stringstream::failure e) {
+        std::cerr << "Exception parsing line " << lineNum << endl;
+    }*/
+}
+
 void writeOutFormatException(const FormatException & e)
 {
-    // todo 3.2d: export information (i.e., line number + invalid data fields) about exception to a logfile.
-    // todo 3.2d: catch ios_base::failure
+    try {
+        ofstream output(LOG_FILE, ofstream::app);
+        if (output.is_open()) {
+            output << "Line: " << e.m_actLine << " ";
+            output << "Invalid fields: " << e.m_actFields << endl;
+            output.close();
+        }
+    } catch (ofstream::failure e) {
+        cerr << "Exception opening/writing/closing file" << endl;
+    }
 }
 
-void checkData(std::string path)
+void checkData(string path)
 {
 	int validLines = 0;
     int invalidLines = 0;
-    std::ifstream file;
-    
-    // todo 3.2a: open file + read each line + call parseLine function (catch ifstream::failure)
-    // todo 3.2c: read each line + call parseLine function (catch FormatException) + count valid + invalid lines
-    
-    std::cout << "valid lines: " << validLines << " - invalid lines: " << invalidLines << std::endl;
+    int lineNumber = 0;
+    ifstream file;
+
+    try {
+        file.open(path);
+        string line;
+        while (getline(file, line)) {
+            try {
+                parseLine(line, ++lineNumber);
+                ++validLines;
+            } catch (FormatException e) {
+                writeOutFormatException(e);
+                ++invalidLines;
+            }
+        }
+        file.close();
+    } catch (ifstream::failure e) {
+        cerr << "Exception opening/reading/closing file" << endl;
+    }
+    cout << "valid lines: " << validLines << " - invalid lines: " << invalidLines << endl;
+
+    if (invalidLines > 0) {
+        cout << "invalid lines logged to " + LOG_FILE << endl;
+    }
 }
 
 int main(int argc, char * argv[])
 {
     if(argc != 2)
     {
-        std::cout << "Invalid number of arguments - USAGE: exceptions [DATASET]" << std::endl;
+        cout << "Invalid number of arguments - USAGE: exceptions [DATASET]" << endl;
         return -1;
     }
     
