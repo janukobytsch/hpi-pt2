@@ -64,9 +64,13 @@ int powSum(int number, int exp)
 }
 
 // ToDo 4.2c - Call each function inside the functions vector. Print the results via std::cout
-void applyFuntions(std::vector<std::function<int(int)>> & functions, int number)
+void applyFunctions(std::vector<std::function<int(int)>> & functions, int number)
 {
-	std::cout << std::endl;
+	std::cout << "Number: " << number << std::endl;
+	for (auto& func : functions) {
+		int result = func(number);
+		std::cout << result << std::endl;
+	}
 }
 
 int main(int argc, char * argv[])
@@ -76,19 +80,25 @@ int main(int argc, char * argv[])
 	
 	if (cmd.m_fibonacci)
 	{
-		// ToDo 4.2b - Add the fibonacci function directly to the functions vector
+		// Add the fibonacci function directly to the functions vector
+		std::function<int(int)> funcFib = fibonacci;
+		functions.push_back(funcFib);
 	}
 	if (cmd.m_centeredTriangular)
 	{
-		// ToDo 4.2b - Add a lambda expression that calls the centeredTriangular function to the functions vector
+		// Add a lambda expression that calls the centeredTriangular function to the functions vector
+		std::function<int(int)> funcTriangular = [](int n)->int { return centeredTriangular(n); };
+		functions.push_back(funcTriangular);
 	}
 	if (cmd.m_powSum)
 	{
-		// ToDo 4.2b - Add the powSum function using a std::bind expression to the functions vector. Use a constant value (e.g., 2) for the exp argument 
+		// Add the powSum function using a std::bind expression to the functions vector. Use a constant value (e.g., 2) for the exp argument
+		std::function<int(int)> funcPowSum = std::bind(powSum, std::placeholders::_1, 2);
+		functions.push_back(funcPowSum);
 	}
 
 	for (int i = 1; i < 45; i++)
 	{
-		applyFuntions(functions, i);
+		applyFunctions(functions, i);
 	}
 }
