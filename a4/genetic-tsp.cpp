@@ -30,7 +30,7 @@ inline float frand(float a, float b) {
 const int numCities = 20;
 
 // population size per generation, i.e., no of tours
-const int populationSize = 20;
+const int populationSize = 100;
 
 // null tour with indices initialized to -1
 const vector<int> NullTour(numCities, -1);
@@ -255,41 +255,50 @@ vector<pair<int, int>> fitness(const vector<vector<int>> &tourSet) {
 }
 
 // evolution step: transform the tour set into the next generation tour set
-pair<int, int> evolution(vector<vector<int>> &tourSet, bool elite) {
+pair<int, int> evolution(vector<vector<int>> &tourSet, const int eliteCount = 3) {
     assert(tourSet.size() == populationSize);
+
     pair<int, int> statistics; // used as return values (min/max tour lengths)
-    
-    const int eliteCount = 2; // number of elite individuals guaranteed to survive
+    const float parentFraction = 0.20f; // fraction of top individuals considered as parents
+    const int nonReserved = populationSize - eliteCount; // reserve slots for elite
 
     // compute fitness of tours, store shortest and largest tour length in statistics
     auto score = fitness(tourSet);
     statistics.first = score[0].first; // shortest tour length
     statistics.second = score[populationSize - 1].first; // largest tour length
 
-    // this is our dschingis khan, i.e. top result
-    vector<int>& leader = tourSet[score[0].second];
-
-    // replace bottom quarter by top quarter crossed with leader
-    int interval = ceil(populationSize / 4);
-    for (int i = 0; i < interval; ++i) {
-        vector<int>& parent2 = tourSet[score[i+1].second];
-        vector<int>& child = tourSet[score[populationSize - 1 - i].second];
-        crossover(leader, parent2, child);
+    // select elite individuals and preserve originals
+    for (int j = 0; j < eliteCount; ++j) {
+        tourSet[populationSize - 1 - j] = tourSet[j];
     }
 
-    // randomize third quarter
-    for (int i = interval; i <interval*2; ++i) {
-        mutate(tourSet[i], frand(0.01f, 0.05f));
+    // replace bottom fraction with crossovers from parent fraction
+    const int crossoverFraction = (int const) (nonReserved * parentFraction);
+    for (int i = eliteCount; i < crossoverFraction; ++i) {
+        // randomly select first parent from elite group
+        int randomIndex = 0;
+        int randomIndex2;
+        do {
+            // TODO zipf distributed randomization
+            randomIndex2 = rand() % crossoverFraction;
+        } while (randomIndex == randomIndex2);
+
+        vector<int>& parent1 = tourSet[score[randomIndex].second];
+        vector<int>& parent2 = tourSet[score[randomIndex2].second];
+
+        vector<int>& child = tourSet[score[nonReserved - 1 - i].second];
+        crossover(parent1, parent2, child);
     }
 
-    // consider elite
+    // mutate elite copies only slightly
+    for (int j = 0; j < eliteCount; ++j) {
+        mutate(tourSet[j], frand(0.005f, 0.008f));
+    }
 
-    // mutate all other tours (ignore two best trips and the former worst trip (replaced))
-    /*for (int i = 2; i < populationSize - 1; ++i) {
-        mutate(tourSet[i]);
-    }*/
-
-
+    // mutate all other tours by larger amount
+    for (int i = eliteCount; i < nonReserved; ++i) {
+        mutate(tourSet[i], frand(0.01f, 0.03f));
+    }
 
     return statistics;
 }
@@ -303,23 +312,19 @@ int main(int argc, char **argv) {
     srand((unsigned int) time(0));
 
     // report shortest/longest tour length for each evolution iteration in a csv file
-    //std::ofstream stats("output.csv", std::ios::binary);
-    //stats << "min tour length" << "; " << "max tour length" << endl;
+    std::ofstream stats("output.csv", std::ios::binary);
+    stats << "min tour length" << "; " << "max tour length" << endl;
 
     // generate randomly a tour set with M tours, each one between N cities
     vector<vector<int>> TourSet(populationSize, NullTour);
     initializeTours(TourSet);
 
-    for (auto &tour : TourSet) {
-        printTourCityNames(tour);
-    }
-
     // do a fixed number of evolution steps
-    for (int e = 0; e < 5000; e++) {
-        auto lengths = evolution(TourSet, false);
+    for (int e = 0; e < 1000; e++) {
+        auto lengths = evolution(TourSet);
 
         // report statistics
-        //stats << lengths.first << "; " << lengths.second << endl;
+        stats << lengths.first << "; " << lengths.second << endl;
         cout << "Evolution " << e << endl;
         cout << lengths.first << "; " << lengths.second << endl;
     }
@@ -331,7 +336,7 @@ int main(int argc, char **argv) {
     cout << "over all generations, min dist = " << minTourLength << ", max dist = " << maxTourLength << endl;
 
     // close the log file (use excel to visualize data)
-    //stats.close();
+    stats.close();
 
     return 0;
 }
