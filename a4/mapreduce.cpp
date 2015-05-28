@@ -203,13 +203,18 @@ void calculateDistancePerRoute(std::map<int, AirportInfo>& airportInfo)
 void calculateAverageRouteDistances(std::map<int, AirportInfo>& airportInfo)
 {
 	std::cout << "Calculate average distance for each source airport" << std::endl;
-	for (auto& iter : airportInfo) {
+	/*for (auto& iter : airportInfo) {
 		AirportInfo &airport = iter.second;
 		if (airport.m_routeLengths.size() > 0) {
 			long sum = std::accumulate(airport.m_routeLengths.begin(), airport.m_routeLengths.end(), 0);
 			int average = (int) (sum / airport.m_routeLengths.size());
 			airport.m_averageRouteLength = average;
 		}
+	}*/
+	for (auto &airport : airportInfo)
+	{
+		airport.second.m_averageRouteLength = std::accumulate(airport.second.m_routeLengths.begin(), airport.second.m_routeLengths.end(), 0.000f, [&] (float a, float b) -> float
+				{ return a+b; }) / airport.second.m_routeLengths.size();
 	}
 }
 
