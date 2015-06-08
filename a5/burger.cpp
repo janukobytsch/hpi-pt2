@@ -90,10 +90,21 @@ std::vector<Order> takeOrders(char* path)
 // Keep in mind that the incoming orders are arbitrarily arranged, but
 // the main list (currentOrders) has to ensure that its entries have ascending table numbers.
 // This way, all orders for the same table can be identified by consecutive orders later.
-void processOrders(std::vector<Order>& currentOrders, std::vector<Order>& incomingOrders)
-{
+void processOrders(std::vector<Order>& currentOrders, std::vector<Order>& incomingOrders) {
+
+	std::sort(incomingOrders.begin(), incomingOrders.end(), [](Order order1, Order order2) {		// sort imcomingOrders by table number
+		return order1.table < order2.table;
+	});
+
+	std::vector<Order> mergedNewOrders;
+	mergedNewOrders.resize(incomingOrders.size() + currentOrders.size());
+	std::merge(incomingOrders.begin(), incomingOrders.end(), currentOrders.begin(), currentOrders.end(), std::back_inserter(mergedNewOrders), [] (Order order1, Order order2) {		// add incomingOrders to currentOrders
+		return order1.table < order2.table;
+	});
+	currentOrders = mergedNewOrders;
 
 }
+
 
 // To Do:
 // Given the list of current orders,
@@ -101,20 +112,51 @@ void processOrders(std::vector<Order>& currentOrders, std::vector<Order>& incomi
 // Once this is done, the order list contains only one single order per active table.
 // Tables for which no orders are given are not represented.
 // If two or more orders are merged, their corresponding items (coke, coffee, ...) are just added.
-void mergeOrders(std::vector<Order>& currentOrders)
-{
+void mergeOrders(std::vector<Order>& currentOrders) {
+	std::vector<Order> mergedOrders;				// TODO: evtl ohne Referenz
+	for (int table = 0; table < NUMBER_TABLES; table++) {
+		mergedOrders.at(table).table = table;				// initialize all table-numbers to avoid duplication
+	}
 
+		int currentTable = currentOrders.at(0).table;
+		mergedOrders.at(currentTable).id = currentOrders.at(0).id;
+		for (Order order : currentOrders) {					// set all IDs
+			if (currentTable != order.table) {
+				currentTable = order.table;
+				mergedOrders.at(currentTable).id = order.id;
+			}
+			continue;
+		}
+
+		for (Order order : currentOrders) {	// accumulate lasting values
+			mergedOrders.at(order.table).burger += order.burger;
+			mergedOrders.at(order.table).coffee += order.coffee;
+			mergedOrders.at(order.table).coke += order.coke;
+			mergedOrders.at(order.table).salad += order.salad;
+		}
+		currentOrders = mergedOrders;
 }
 
 // To Do:
 // The given table wants to pay.
 // If it was already paid, nothing happens.
 // if it has not paid so far, the price has to be calculated based on
-// a simple price list: coffee or coke: 1 Euro, Burger: 5 Euro, Salad: 4 Euro
+// a simple price list: coffee or coke: 2 Euro, Burger: 5 Euro, Salad: 4 Euro
 // Remove the order from the order list and return the price for the given table.
-int pay(int table, std::vector<Order>& currentOrders)
-{
-    return 0;
+int pay(int table, std::vector<Order>& currentOrders) {
+	int sum = 0;
+	int numberOfBurgers = currentOrders.at(table).burger;
+	int numberOfCoffee = currentOrders.at(table).coffee;
+	int numberOfCoke = currentOrders.at(table).coke;
+	int numberOfSalad = currentOrders.at(table).salad;
+
+	sum += numberOfSalad * 4;
+	sum += (numberOfBurgers - (numberOfBurgers / 3)) * 5;
+	sum += (numberOfCoffee - (numberOfCoffee / 4)) * 2;
+	sum += (numberOfCoke - (numberOfCoke / 4)) * 2;
+
+	currentOrders.erase(currentOrders.begin()+table);
+    return sum;
 }
 
 int main(int argc, char* argv[])
