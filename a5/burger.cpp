@@ -11,6 +11,9 @@
 
 const int NUMBER_TABLES = 10; // max number of tables in the restaurant
 const int AVG_SEATS_PER_TABLE = 6; // average number of seats per table
+const int PRICE_BURGER = 5;
+const int PRICE_SALAD = 4;
+const int PRICE_DRINK = 2;
 
 struct Order
 {
@@ -20,7 +23,17 @@ struct Order
     int burger;
     int salad;
     int id;
+
+    Order() : table(0), coffee(0), coke(0), burger(0), salad(0), id(0) {}
+    Order(int _table, int _coffee, int _coke, int _burger, int _salad, int _id) :
+            table(_table), coffee(_coffee), coke(_coke), burger(_burger), salad(_salad), id(_id) {}
 };
+bool operator <=(const Order& order1, const Order& order2) {
+    return order1.table <= order2.table;
+}
+bool operator <(const Order& order1, const Order& order2) {
+    return order1.table < order2.table;
+}
 
 int orderSerialNumber = 0; // all orders get a unique number (could be the time as well)
 
@@ -85,77 +98,76 @@ std::vector<Order> takeOrders(char* path)
     return orders;
 }
 
-// To Do:
 // Merge the incoming orders into the current main list of orders.
 // Keep in mind that the incoming orders are arbitrarily arranged, but
 // the main list (currentOrders) has to ensure that its entries have ascending table numbers.
 // This way, all orders for the same table can be identified by consecutive orders later.
 void processOrders(std::vector<Order>& currentOrders, std::vector<Order>& incomingOrders) {
+    std::vector<Order> mergedOrders(currentOrders.size() + incomingOrders.size());
 
-	std::sort(incomingOrders.begin(), incomingOrders.end(), [](Order order1, Order order2) {		// sort imcomingOrders by table number
-		return order1.table < order2.table;
-	});
-
-	std::vector<Order> mergedNewOrders;
-	mergedNewOrders.resize(incomingOrders.size() + currentOrders.size());
-	std::merge(incomingOrders.begin(), incomingOrders.end(), currentOrders.begin(), currentOrders.end(), std::back_inserter(mergedNewOrders), [] (Order order1, Order order2) {		// add incomingOrders to currentOrders
-		return order1.table < order2.table;
-	});
-	currentOrders = mergedNewOrders;
-
+	std::sort(incomingOrders.begin(), incomingOrders.end());
+	std::merge(incomingOrders.begin(), incomingOrders.end(), currentOrders.begin(), currentOrders.end(), mergedOrders.begin());
+	currentOrders = mergedOrders;
 }
 
-
-// To Do:
 // Given the list of current orders,
 // merge all orders, that is, all orders for the same table are merged into one order.
 // Once this is done, the order list contains only one single order per active table.
 // Tables for which no orders are given are not represented.
 // If two or more orders are merged, their corresponding items (coke, coffee, ...) are just added.
 void mergeOrders(std::vector<Order>& currentOrders) {
-	std::vector<Order> mergedOrders;				// TODO: evtl ohne Referenz
-	for (int table = 0; table < NUMBER_TABLES; table++) {
-		mergedOrders.at(table).table = table;				// initialize all table-numbers to avoid duplication
-	}
+    std::map<int,int> tableIds;
+	std::vector<Order> mergedOrders;
 
-		int currentTable = currentOrders.at(0).table;
-		mergedOrders.at(currentTable).id = currentOrders.at(0).id;
-		for (Order order : currentOrders) {					// set all IDs
-			if (currentTable != order.table) {
-				currentTable = order.table;
-				mergedOrders.at(currentTable).id = order.id;
-			}
-			continue;
-		}
+    int lastId = 0;
+    for (Order order: currentOrders) {
+        std::map<int,int>::iterator it = tableIds.find(order.table);
+        if (it != tableIds.end()) {
+            Order& combinedOrder = mergedOrders[it->second];
+            combinedOrder.burger += order.burger;
+            combinedOrder.coffee += order.coffee;
+            combinedOrder.coke += order.coke;
+            combinedOrder.salad += order.salad;
+        } else {
+            Order newCombinedOrder(order.table, order.coffee, order.coke, order.burger, order.salad, order.id);
+            mergedOrders.push_back(newCombinedOrder);
+            tableIds[order.table] = lastId++;
+        }
+    }
 
-		for (Order order : currentOrders) {	// accumulate lasting values
-			mergedOrders.at(order.table).burger += order.burger;
-			mergedOrders.at(order.table).coffee += order.coffee;
-			mergedOrders.at(order.table).coke += order.coke;
-			mergedOrders.at(order.table).salad += order.salad;
-		}
-		currentOrders = mergedOrders;
+    currentOrders = mergedOrders;
 }
 
-// To Do:
 // The given table wants to pay.
 // If it was already paid, nothing happens.
 // if it has not paid so far, the price has to be calculated based on
 // a simple price list: coffee or coke: 2 Euro, Burger: 5 Euro, Salad: 4 Euro
 // Remove the order from the order list and return the price for the given table.
 int pay(int table, std::vector<Order>& currentOrders) {
-	int sum = 0;
-	int numberOfBurgers = currentOrders.at(table).burger;
-	int numberOfCoffee = currentOrders.at(table).coffee;
-	int numberOfCoke = currentOrders.at(table).coke;
-	int numberOfSalad = currentOrders.at(table).salad;
+    int sum = 0;
+    std::vector<Order>::iterator it = std::find_if(currentOrders.begin(), currentOrders.end(), [&](const Order& order) -> bool {
+        return table == order.table;
+    });
 
-	sum += numberOfSalad * 4;
-	sum += (numberOfBurgers - (numberOfBurgers / 3)) * 5;
-	sum += (numberOfCoffee - (numberOfCoffee / 4)) * 2;
-	sum += (numberOfCoke - (numberOfCoke / 4)) * 2;
+    if (it == currentOrders.end()) {
+        return sum;
+    }
 
-	currentOrders.erase(currentOrders.begin()+table);
+    Order currentOrder = *it;
+    int numBurgers = currentOrder.burger;
+	int numCoffees = currentOrder.coffee;
+	int numCokes = currentOrder.coke;
+	int numSalads = currentOrder.salad;
+    int numDrinks = numCokes + numCoffees;
+
+	sum += numSalads * PRICE_SALAD;
+    sum += (numBurgers - (numBurgers / 3)) * PRICE_BURGER; // downcast equals floor for positive numbers
+    sum += (numDrinks - (numDrinks /4)) * PRICE_DRINK;
+
+    currentOrders.erase(std::remove_if(currentOrders.begin(), currentOrders.end(), [&](const Order& order) -> bool {
+        return table == order.table;
+    }), currentOrders.end());
+
     return sum;
 }
 
